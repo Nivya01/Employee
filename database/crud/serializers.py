@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Employee, EmployeeChildren,validate_name,validate_child_age
+from .models import Employee, EmployeeChildren,validate_name
 
 class EmployeeChildrenSerializer(serializers.ModelSerializer):
 
@@ -10,7 +10,7 @@ class EmployeeChildrenSerializer(serializers.ModelSerializer):
 class EmployeeSerializer(serializers.ModelSerializer):
     children = EmployeeChildrenSerializer(many=True, required=False)
     emp_name = serializers.CharField(validators=[validate_name])
-
+    
     class Meta:
         model = Employee
         fields = ['emp_id','emp_name', 'emp_age', 'emp_gender', 'emp_email', 'children']

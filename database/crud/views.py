@@ -61,8 +61,8 @@ def create_or_update_employee(request):
                         child_serializer.save(employee=employee)
                     else:
                         return Response(child_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
+                    
+                    
     employee_serializer = EmployeeSerializer(employee)
     return Response(employee_serializer.data)
 
@@ -87,7 +87,6 @@ def validate_sorting_and_filters(filters):
                     raise ValidationError(f"Invalid condition: '{condition}' for filter field '{key}'. Conditions 'gte', 'lt', 'gt' and 'eq' are only allowed for this field.")
                 if condition not in VALID_CONDITIONS:
                     raise ValidationError(f"Invalid condition: '{condition}' for filter field '{key}'. Valid conditions are {VALID_CONDITIONS}.")
-                
                 if key == "emp_gender" and value not in ["male", "female"]:
                     raise ValidationError("Invalid value for 'emp_gender'. Allowed values are 'male' and 'female'.")
             
@@ -110,7 +109,7 @@ def filter_employees(request):
     sort_by = data.get('sort_by', {})
     filters = data.get('filters', {})
 
-    employees = Employee.objects.all()
+    # employees = Employee.objects.all()
 
     try:
         validate_sorting_and_filters({'sort_by': sort_by, **filters})
@@ -132,14 +131,14 @@ def filter_employees(request):
         }
     }
 
-    employees = employees.annotate(child_count=Count('children'))
+    employees = Employee.objects.annotate(child_count=Count('children'))
 
     for key, conditions in filters.items():
         if key in filter_map:
             for condition, value in conditions.items():
                 if condition in filter_map[key]:
                     employees = employees.filter(**{filter_map[key][condition]: value})
-        
+
         if key == "emp_name":
             emp_name_conditions = filters["emp_name"]
             if "startswith" in emp_name_conditions:
@@ -166,7 +165,7 @@ def filter_employees(request):
                 employees = employees.filter(children__child_name__exact=children_conditions["eq"])
             elif "contains" in children_conditions:
                 employees = employees.filter(children__child_name__icontains=children_conditions["contains"])
-                        
+
         if key == "emp_gender":
             emp_gender_conditions = filters["emp_gender"]
             employees = employees.filter(emp_gender__exact=emp_gender_conditions)
@@ -178,7 +177,7 @@ def filter_employees(request):
                 raise ValidationError(f"Invalid sort field: '{field}'. Valid fields are {VALID_SORT_FIELDS}.")
             if direction.lower() not in VALID_SORT_ORDERS:
                 raise ValidationError(f"Invalid sort order: '{direction}'. Valid orders are {VALID_SORT_ORDERS}.")
-            
+
             if field == 'children__child_name':
                 sorting.append("children__child_name" if direction.lower() == 'asc' else "-children__child_name")
             elif field == 'children__child_age':

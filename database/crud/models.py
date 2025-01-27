@@ -16,7 +16,7 @@ def validate_child_age(value, employee):
 
     if value >= employee.emp_age:
         raise ValidationError("Child age must be less than employee age.")
-    
+
 def validate_emp_gender(value):
     if value not in ['male', 'female']:
         raise ValidationError("Employee gender must be male or female.") 
@@ -24,7 +24,7 @@ def validate_emp_gender(value):
 class Employee(models.Model): 
     emp_id = models.AutoField(primary_key=True)
     emp_name = models.CharField(max_length=100, validators=[validate_name])
-    emp_age = models.IntegerField(validators=[validate_emp_age])
+    emp_age = models.IntegerField()
     emp_gender = models.CharField(max_length=10, validators=[validate_emp_gender])
     emp_email = models.EmailField(unique=True)
     def save(self, *args, **kwargs):
@@ -40,13 +40,8 @@ class Employee(models.Model):
 class EmployeeChildren(models.Model):
     child_id = models.AutoField(primary_key=True)
     child_name = models.CharField(max_length=100, validators=[validate_name])
-    child_age = models.IntegerField(validators=[validate_child_age])
+    child_age = models.IntegerField()
     employee = models.ForeignKey(Employee, related_name="children", on_delete=models.CASCADE)
 
     def __str__(self):
         return self.child_name
-
-
-
-
-
