@@ -62,7 +62,7 @@ def create_or_update_employee(request):
                         child_serializer.save(employee=employee)
                     else:
                         return Response(child_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+                    
                     
     employee_serializer = EmployeeSerializer(employee)
     return Response(employee_serializer.data)
@@ -153,17 +153,7 @@ def filter_employees(request):
                     employees = employees.filter(**{field: value})
         elif key == "emp_gender":
             employees = employees.filter(emp_gender=conditions)
-        elif key == "children_age":
-            for condition, value in conditions.items():
-                if condition in filter_map["children_age"]:
-                    field = filter_map["children_age"][condition]
-                    employees = employees.filter(**{field: value})
-        elif key == "children_count":
-            for condition, value in conditions.items():
-                if condition in filter_map["children_count"]:
-                    field = filter_map["children_count"][condition]
-                    employees = employees.filter(**{field: value})
-    
+
     if sort_by:
         sorting = []
         for field, direction in sort_by.items():
