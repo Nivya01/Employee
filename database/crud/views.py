@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from .models import Employee, EmployeeChildren
 from .serializers import EmployeeSerializer, EmployeeChildrenSerializer
 from rest_framework.exceptions import ValidationError
+from django.db.models import Max, Min
 
 @api_view(['POST'])
 def create_or_update_employee(request):
@@ -109,8 +110,6 @@ def filter_employees(request):
     sort_by = data.get('sort_by', {})
     filters = data.get('filters', {})
 
-    # employees = Employee.objects.all()
-
     try:
         validate_sorting_and_filters({'sort_by': sort_by, **filters})
     except ValidationError as e:
@@ -128,64 +127,57 @@ def filter_employees(request):
             "gte": "child_count__gte",
             "lt": "child_count__lt",
             "gt": "child_count__gt",
-        }
+        },
+        "emp_name": {
+            "startswith": "emp_name__istartswith",
+            "eq": "emp_name__exact",
+            "contains": "emp_name__icontains",
+        },
+        "emp_email": {
+            "startswith": "emp_email__istartswith",
+            "contains": "emp_email__icontains",
+            "eq": "emp_email__exact",
+        },
+        "children_name": {
+            "startswith": "children__child_name__istartswith",
+            "eq": "children__child_name__exact",
+            "contains": "children__child_name__icontains",
+        },
     }
 
-    employees = Employee.objects.annotate(child_count=Count('children'))
+    employees = Employee.objects.annotate(
+        child_count=Count('children', distinct=True),
+        max_child_age=Max('children__child_age'),
+        min_child_age=Min('children__child_age'),
+    )
 
     for key, conditions in filters.items():
         if key in filter_map:
             for condition, value in conditions.items():
-                if condition in filter_map[key]:
-                    employees = employees.filter(**{filter_map[key][condition]: value})
-
-        if key == "emp_name":
-            emp_name_conditions = filters["emp_name"]
-            if "startswith" in emp_name_conditions:
-                employees = employees.filter(emp_name__istartswith=emp_name_conditions["startswith"])
-            elif "eq" in emp_name_conditions:
-                employees = employees.filter(emp_name__exact=emp_name_conditions["eq"])
-            elif "contains" in emp_name_conditions:
-                employees = employees.filter(emp_name__icontains=emp_name_conditions["contains"])
-
-        if key == "emp_email":
-            emp_email_conditions = filters["emp_email"]
-            if "startswith" in emp_email_conditions:
-                employees = employees.filter(emp_email__istartswith=emp_email_conditions["startswith"])
-            elif "contains" in emp_email_conditions:
-                employees = employees.filter(emp_email__icontains=emp_email_conditions["contains"])
-            elif "eq" in emp_email_conditions:
-                employees = employees.filter(emp_email__exact=emp_email_conditions["eq"])
-
-        if key == "children_name":
-            children_conditions = filters["children_name"]
-            if "startswith" in children_conditions:
-                employees = employees.filter(children__child_name__istartswith=children_conditions["startswith"])
-            elif "eq" in children_conditions:
-                employees = employees.filter(children__child_name__exact=children_conditions["eq"])
-            elif "contains" in children_conditions:
-                employees = employees.filter(children__child_name__icontains=children_conditions["contains"])
-
-        if key == "emp_gender":
-            emp_gender_conditions = filters["emp_gender"]
-            employees = employees.filter(emp_gender__exact=emp_gender_conditions)
+                field = filter_map[key].get(condition)
+                if field:
+                    employees = employees.filter(**{field: value})
+        elif key == "emp_gender":
+            employees = employees.filter(emp_gender=conditions)
 
     if sort_by:
         sorting = []
         for field, direction in sort_by.items():
             if field not in VALID_SORT_FIELDS:
-                raise ValidationError(f"Invalid sort field: '{field}'. Valid fields are {VALID_SORT_FIELDS}.")
+                return Response(
+                    {"error": f"Invalid sort field: '{field}'. Valid fields are {VALID_SORT_FIELDS}."}, status=400)
             if direction.lower() not in VALID_SORT_ORDERS:
-                raise ValidationError(f"Invalid sort order: '{direction}'. Valid orders are {VALID_SORT_ORDERS}.")
+                return Response(
+                    {"error": f"Invalid sort order: '{direction}'. Valid orders are {VALID_SORT_ORDERS}."}, status=400)
 
-            if field == 'children__child_name':
-                sorting.append("children__child_name" if direction.lower() == 'asc' else "-children__child_name")
-            elif field == 'children__child_age':
-                sorting.append("children__child_age" if direction.lower() == 'asc' else "-children__child_age")
+            if field == "children__child_age":
+                sorting.append(f"-max_child_age" if direction.lower() == "desc" else "max_child_age")
             else:
-                sorting.append(f"-{field}" if direction.lower() == 'desc' else field)
+                sorting.append(f"-{field}" if direction.lower() == "desc" else field)
 
         employees = employees.order_by(*sorting)
+
+    employees = employees.distinct()
 
     employee_serializer = EmployeeSerializer(employees, many=True)
     return Response(employee_serializer.data)
