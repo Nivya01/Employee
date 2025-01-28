@@ -62,7 +62,7 @@ def create_or_update_employee(request):
                         child_serializer.save(employee=employee)
                     else:
                         return Response(child_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-                    
+
                     
     employee_serializer = EmployeeSerializer(employee)
     return Response(employee_serializer.data)
@@ -82,14 +82,8 @@ def validate_sorting_and_filters(filters):
         
         if isinstance(conditions, dict):
             for condition, value in conditions.items():
-                if key in ['emp_name', 'emp_email', 'children_name'] and condition in ['gte', 'gt', 'lt']:
-                    raise ValidationError(f"Invalid condition: '{condition}' for filter field '{key}'. Conditions 'startswith', 'contains', and 'eq' are only allowed for this field.")
-                if key in ['children_age', 'children_count'] and condition in ['startswith', 'contains']:
-                    raise ValidationError(f"Invalid condition: '{condition}' for filter field '{key}'. Conditions 'gte', 'lt', 'gt' and 'eq' are only allowed for this field.")
                 if condition not in VALID_CONDITIONS:
                     raise ValidationError(f"Invalid condition: '{condition}' for filter field '{key}'. Valid conditions are {VALID_CONDITIONS}.")
-                if key == "emp_gender" and value not in ["male", "female"]:
-                    raise ValidationError("Invalid value for 'emp_gender'. Allowed values are 'male' and 'female'.")
             
         elif isinstance(conditions, str):
             if key == "emp_gender" and conditions not in ["male", "female"]:
@@ -159,7 +153,17 @@ def filter_employees(request):
                     employees = employees.filter(**{field: value})
         elif key == "emp_gender":
             employees = employees.filter(emp_gender=conditions)
-
+        elif key == "children_age":
+            for condition, value in conditions.items():
+                if condition in filter_map["children_age"]:
+                    field = filter_map["children_age"][condition]
+                    employees = employees.filter(**{field: value})
+        elif key == "children_count":
+            for condition, value in conditions.items():
+                if condition in filter_map["children_count"]:
+                    field = filter_map["children_count"][condition]
+                    employees = employees.filter(**{field: value})
+    
     if sort_by:
         sorting = []
         for field, direction in sort_by.items():
